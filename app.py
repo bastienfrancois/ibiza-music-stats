@@ -8,7 +8,7 @@ st.markdown("""<style>#MainMenu {visibility: hidden;} footer {visibility: hidden
 # --- LOAD DATA ---
 @st.cache_data
 def load_data():
-    return pd.read_csv("ibiza_data.csv")
+    return pd.read_csv("ibiza_data3.csv")
 
 try:
     raw_df = load_data()
@@ -98,3 +98,4 @@ try:
 except Exception as e:
     st.error(f"Something went wrong: {e}")
     st.info("Tip: Ensure your 'ibiza_data.csv' is uploaded to GitHub.")
+
