@@ -11,6 +11,7 @@ st.set_page_config(page_title="Ibiza 2025 Telemetry", layout="wide")
 st.markdown("""<style>#MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;} .block-container {padding-top: 1rem;}</style>""", unsafe_allow_html=True)
 
 # --- RESCUE DATASET (Offline Mode) ---
+# This data loads if the API fails, ensuring you ALWAYS see graphs.
 RESCUE_DATA = [
     {"Track": "Cafe Del Mar", "Artist": "Energy 52", "BPM": 134, "Energy": 0.8, "Valence": 0.4, "Danceability": 0.6, "Loudness": -7, "Acousticness": 0.1, "Popularity": 75, "Year": "1998"},
     {"Track": "Saltwater", "Artist": "Chicane", "BPM": 130, "Energy": 0.7, "Valence": 0.3, "Danceability": 0.5, "Loudness": -8, "Acousticness": 0.2, "Popularity": 68, "Year": "1999"},
@@ -34,21 +35,4 @@ for i in range(20):
         "Loudness": random.uniform(-10, -5),
         "Acousticness": random.uniform(0.0, 0.3),
         "Popularity": random.randint(40, 60),
-        "Year": "2025"
-    })
-
-# --- MAIN LOGIC ---
-def get_data_safe():
-    source = "Unknown"
-    
-    # 1. Try API Connection
-    try:
-        if "CLIENT_ID" in st.secrets:
-            auth_manager = SpotifyClientCredentials(
-                client_id=st.secrets["CLIENT_ID"], 
-                client_secret=st.secrets["CLIENT_SECRET"],
-                cache_handler=None
-            )
-            sp = spotipy.Spotify(auth_manager=auth_manager, requests_timeout=5)
-            
-            # SEARCH for an Ibiza playlist (Fix
+        "Year":
