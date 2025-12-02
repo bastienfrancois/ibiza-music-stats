@@ -28,7 +28,7 @@ try:
 
     # --- ROW 1: THE 3D ANALYSIS (FIXED) ---
     st.subheader("1. The Ibiza Sound Structure")
-    st.markdown("X: **Tempo (BPM)** | Y: **Danceability** | Z: **Musical Key** | Color: **Popularity**")
+    st.markdown("X: **Tempo (BPM)** | Y: **Danceability** | Z: **Energy** | Color: **Popularity**")
     
     fig_3d = px.scatter_3d(df, 
                         x='BPM', 
@@ -97,6 +97,7 @@ try:
 except Exception as e:
     st.error(f"Something went wrong: {e}")
     st.info("Tip: Ensure your 'ibiza_data.csv' is uploaded to GitHub.")
+
 
 
 
