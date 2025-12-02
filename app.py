@@ -1,4 +1,4 @@
-import streamlit as st
+ctronicimport streamlit as st
 import pandas as pd
 import plotly.express as px
 
@@ -9,7 +9,7 @@ st.markdown("""<style>#MainMenu {visibility: hidden;} footer {visibility: hidden
 @st.cache_data
 def load_data():
     # Updated to version 3 as requested
-    return pd.read_csv("ibiza_data3.csv")
+    return pd.read_csv("ibiza_data_electronic.csv")
 
 try:
     raw_df = load_data()
@@ -96,4 +96,5 @@ try:
 except Exception as e:
     st.error(f"Something went wrong: {e}")
     st.info("Tip: Ensure your 'ibiza_data3.csv' is uploaded to GitHub.")
+
 
