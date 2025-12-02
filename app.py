@@ -1,4 +1,4 @@
-import streamlit as st
+nergyimport streamlit as st
 import pandas as pd
 import plotly.express as px
 
@@ -97,4 +97,5 @@ try:
 except Exception as e:
     st.error(f"Something went wrong: {e}")
     st.info("Tip: Ensure your 'ibiza_data.csv' is uploaded to GitHub.")
+
 
