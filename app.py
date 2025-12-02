@@ -25,7 +25,7 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # --- CONFIGURATION ---
 # Default to Spotify's 'Mint' (Top Electronic) if no ID is provided
-PLAYLIST_ID = '37i9dQZF1DX4dyzvuaRJ0n' 
+PLAYLIST_ID = '37i9dQZEVXbMDoHDwVN2tF' 
 
 # --- AUTHENTICATION & DATA FETCHING ---
 @st.cache_data(ttl=600)
@@ -177,3 +177,4 @@ try:
 except Exception as e:
 
     st.error(f"System Error: {e}")
+
