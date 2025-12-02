@@ -1,4 +1,4 @@
-nergyimport streamlit as st
+import streamlit as st
 import pandas as pd
 import plotly.express as px
 
@@ -8,6 +8,7 @@ st.markdown("""<style>#MainMenu {visibility: hidden;} footer {visibility: hidden
 # --- LOAD DATA ---
 @st.cache_data
 def load_data():
+    # Updated to version 3 as requested
     return pd.read_csv("ibiza_data3.csv")
 
 try:
@@ -18,7 +19,6 @@ try:
     df = raw_df[(raw_df['BPM'] >= 50) & (raw_df['BPM'] <= 200)].copy()
     
     # 2. Create "Display Title" (Artist - Full Track Name)
-    # We clean the artist name to remove brackets like ['Artist'] if they exist
     df['Artist_Clean'] = df['Artist'].astype(str).str.replace(r"[\[\]']", "", regex=True)
     df['Display_Title'] = df['Artist_Clean'] + " - " + df['Track']
 
@@ -26,14 +26,14 @@ try:
     st.title("🏝️ Ibiza Clout Study")
     st.caption(f"Analyzing {len(df):,} Tracks | BPM Range: 50-200 | Source: Kaggle Research Data")
 
-    # --- ROW 1: THE 3D ANALYSIS (FIXED) ---
+    # --- ROW 1: THE 3D ANALYSIS ---
     st.subheader("1. The Ibiza Sound Structure")
     st.markdown("X: **Tempo (BPM)** | Y: **Danceability** | Z: **Energy** | Color: **Popularity**")
     
     fig_3d = px.scatter_3d(df, 
                         x='BPM', 
                         y='Danceability', 
-                        z='energy',
+                        z='Energy', # Fixed capitalization (was 'energy')
                         color='Popularity', 
                         size='key', 
                         hover_name='Display_Title',
@@ -51,7 +51,6 @@ try:
     
     with c1:
         st.subheader("Tempo Analysis (Strict 2-BPM Granularity)")
-        # Calculate strict bins: (200 - 50) / 2 = 75 bins
         fig_bpm = px.histogram(df, x="BPM", 
                                nbins=75, 
                                template='plotly_dark', 
@@ -96,8 +95,4 @@ try:
 
 except Exception as e:
     st.error(f"Something went wrong: {e}")
-    st.info("Tip: Ensure your 'ibiza_data.csv' is uploaded to GitHub.")
-
-
-
-
+    st.info("Tip: Ensure your 'ibiza_data3.csv' is uploaded to GitHub.")
