@@ -13,12 +13,12 @@ def load_data():
 try:
     raw_df = load_data()
     
-    # --- DATA CLEANING & FILTERS ---
-    # 1. Strict BPM Filter (50 to 200 only)
+    # --- PRE-PROCESSING ---
+    # 1. Strict BPM Filter (50 to 200)
     df = raw_df[(raw_df['BPM'] >= 50) & (raw_df['BPM'] <= 200)].copy()
     
     # 2. Create "Display Title" (Artist - Full Track Name)
-    # We clean the artist column just in case
+    # We clean the artist name to remove brackets like ['Artist'] if they exist
     df['Artist_Clean'] = df['Artist'].astype(str).str.replace(r"[\[\]']", "", regex=True)
     df['Display_Title'] = df['Artist_Clean'] + " - " + df['Track']
 
@@ -26,27 +26,27 @@ try:
     st.title("🏝️ Ibiza Clout Study")
     st.caption(f"Analyzing {len(df):,} Tracks | BPM Range: 50-200 | Source: Kaggle Research Data")
 
-    # --- ROW 1: THE 3D ANALYSIS (Updated Axes) ---
+    # --- ROW 1: THE 3D ANALYSIS (FIXED) ---
     st.subheader("1. The Ibiza Sound Structure")
     st.markdown("X: **Tempo (BPM)** | Y: **Danceability** | Z: **Musical Key** | Color: **Popularity**")
     
     fig_3d = px.scatter_3d(df, 
                         x='BPM', 
                         y='Danceability', 
-                        z='key',
+                        z='key', # FIXED: Changed from 'Key' to 'key'
                         color='Popularity', 
-                        size='Popularity', # Bubble size also shows popularity
-                        hover_name='Display_Title', # Shows full Artist - Track
-                        hover_data={'BPM': True, 'Key': True, 'Display_Title': False},
+                        size='Popularity', 
+                        hover_name='Display_Title',
+                        hover_data={'BPM': True, 'key': True, 'Display_Title': False},
                         template='plotly_dark',
-                        color_continuous_scale='Turbo', # High contrast neon colors
+                        color_continuous_scale='Turbo',
                         title="3D Telemetry: Tempo vs Groove vs Tonality")
     
-    # Make the graph tall and impressive
+    # Make the graph tall
     fig_3d.update_layout(height=800, margin=dict(l=0,r=0,b=0,t=0))
     st.plotly_chart(fig_3d, use_container_width=True)
 
-    # --- ROW 2: DETAILED STATS (New Layout) ---
+    # --- ROW 2: DETAILED STATS ---
     c1, c2 = st.columns(2)
     
     with c1:
@@ -55,7 +55,7 @@ try:
         fig_bpm = px.histogram(df, x="BPM", 
                                nbins=75, 
                                template='plotly_dark', 
-                               color_discrete_sequence=['#00CC96']) # Ibiza Green
+                               color_discrete_sequence=['#00CC96'])
         
         # Force strict 2-beat intervals
         fig_bpm.update_traces(xbins=dict(start=50, end=200, size=2))
@@ -64,7 +64,6 @@ try:
         
     with c2:
         st.subheader("Energy vs Danceability")
-        # Replacing the Year graph as requested
         fig_scatter = px.scatter(df, x="Danceability", y="Energy", 
                                  color="Genre" if "Genre" in df.columns else "Popularity",
                                  hover_name="Display_Title",
@@ -84,13 +83,13 @@ try:
                      y='Display_Title', 
                      orientation='h', # Horizontal
                      template='plotly_dark',
-                     color='Loudness', # As requested
-                     color_continuous_scale='Magma', # Dark to Bright heat map
+                     color='Loudness', 
+                     color_continuous_scale='Magma', 
                      hover_data=['BPM', 'Genre'])
     
-    # Invert Y axis so #1 is at the top, make chart very tall to fit 50 songs
+    # Invert Y axis so #1 is at the top
     fig_top.update_layout(yaxis=dict(autorange="reversed"), 
-                          height=1000, # Taller for 50 items
+                          height=1000, 
                           xaxis_title="Popularity Score (0-100)", 
                           yaxis_title=None)
     st.plotly_chart(fig_top, use_container_width=True)
@@ -98,5 +97,3 @@ try:
 except Exception as e:
     st.error(f"Something went wrong: {e}")
     st.info("Tip: Ensure your 'ibiza_data.csv' is uploaded to GitHub.")
-
-
