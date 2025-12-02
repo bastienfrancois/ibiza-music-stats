@@ -33,7 +33,7 @@ try:
     fig_3d = px.scatter_3d(df, 
                         x='BPM', 
                         y='Danceability', 
-                        z='Key',
+                        z='key',
                         color='Popularity', 
                         size='Popularity', # Bubble size also shows popularity
                         hover_name='Display_Title', # Shows full Artist - Track
@@ -98,4 +98,5 @@ try:
 except Exception as e:
     st.error(f"Something went wrong: {e}")
     st.info("Tip: Ensure your 'ibiza_data.csv' is uploaded to GitHub.")
+
 
