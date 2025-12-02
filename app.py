@@ -5,106 +5,105 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 
-# --- 1. SETUP & LOGGING ---
-st.set_page_config(page_title="Ibiza Debugger", layout="wide")
-st.title("🛠️ Live Diagnostic Mode")
+# --- PAGE CONFIGURATION ---
+st.set_page_config(page_title="Ibiza 2025 Telemetry", layout="wide")
+st.markdown("""<style>#MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;} .block-container {padding-top: 1rem;}</style>""", unsafe_allow_html=True)
 
-# --- 2. CREDENTIAL CHECK ---
-st.write("1️⃣ Checking Credentials...")
+# --- AUTHENTICATION ---
 try:
-    cid = st.secrets["CLIENT_ID"]
-    sec = st.secrets["CLIENT_SECRET"]
-    
-    # Check if they look like valid strings
-    if len(cid) != 32 or len(sec) != 32:
-        st.warning(f"⚠️ Warning: Keys look the wrong length. ID is {len(cid)} chars. (Should be 32)")
-    
-    st.success(f"✅ Credentials found. ID: `{cid[:4]}...`")
-except Exception as e:
-    st.error(f"❌ CRITICAL ERROR: Secrets are missing. {e}")
+    client_id = st.secrets["CLIENT_ID"]
+    client_secret = st.secrets["CLIENT_SECRET"]
+except:
+    st.error("🚨 Secrets missing. Please check Streamlit Settings.")
     st.stop()
 
-# --- 3. API CONNECTION ---
-st.write("2️⃣ Connecting to Spotify...")
-try:
-    auth_manager = SpotifyClientCredentials(client_id=cid, client_secret=sec)
-    sp = spotipy.Spotify(auth_manager=auth_manager)
-    st.success("✅ Spotify Object Created.")
-except Exception as e:
-    st.error(f"❌ CONNECTION FAILED: {e}")
-    st.stop()
-
-# --- 4. PLAYLIST SEARCH ---
-st.write("3️⃣ Searching for 'Ibiza Classics'...")
-try:
-    # Try a direct search
-    results = sp.search(q="Ibiza Classics", type="playlist", limit=1)
-    
-    if not results['playlists']['items']:
-        st.error("❌ Search returned 0 results. The API is working, but found nothing.")
-        st.stop()
+# --- MAIN DATA ENGINE ---
+def get_data():
+    try:
+        # 1. Force Fresh Authentication (Disables caching to fix 'NoneType' errors)
+        auth_manager = SpotifyClientCredentials(
+            client_id=client_id, 
+            client_secret=client_secret, 
+            cache_handler=None 
+        )
+        sp = spotipy.Spotify(auth_manager=auth_manager)
         
-    playlist = results['playlists']['items'][0]
-    pid = playlist['id']
-    pname = playlist['name']
-    st.success(f"✅ Found Playlist: **{pname}** (ID: `{pid}`)")
-except Exception as e:
-    # This captures the 401/403/404 errors
-    st.error(f"❌ SEARCH FAILED. This is the error: {e}")
-    st.stop()
-
-# --- 5. FETCH TRACKS ---
-st.write(f"4️⃣ Downloading tracks from '{pname}'...")
-try:
-    track_results = sp.playlist_items(pid, limit=50)
-    tracks = track_results['items']
-    
-    if not tracks:
-        st.error("❌ Playlist is empty.")
-        st.stop()
+        # 2. HARDCODED TARGET (The ID you provided)
+        target_id = '6wQJ2kYwH8wGj1z8xX0j2y' 
         
-    st.success(f"✅ Retrieved {len(tracks)} raw items.")
-except Exception as e:
-    st.error(f"❌ DOWNLOAD FAILED: {e}")
-    st.stop()
-
-# --- 6. DATA PROCESSING ---
-st.write("5️⃣ Processing Audio Features...")
-try:
-    track_ids = []
-    track_info = {}
-    
-    # Filter valid tracks
-    for t in tracks:
-        if t.get('track') and t['track'].get('id'):
-            tid = t['track']['id']
-            track_ids.append(tid)
-            track_info[tid] = {
-                'name': t['track']['name'],
-                'artist': t['track']['artists'][0]['name'],
-                'popularity': t['track']['popularity']
-            }
+        # 3. Get Playlist Info & Tracks
+        try:
+            playlist_info = sp.playlist(target_id)
+            pname = playlist_info['name']
             
-    # Batch Fetch
-    audio_features = []
-    if track_ids:
-        # Fetch first 50
-        features = sp.audio_features(track_ids[:50])
-        audio_features = [f for f in features if f is not None]
+            # Fetch tracks (Limit 80 for speed/relevance)
+            track_results = sp.playlist_items(target_id, limit=80)
+            tracks = track_results['items']
+        except Exception as e:
+             # If the ID is wrong or private, this catches it
+            return pd.DataFrame(), f"Playlist Error: {e}"
+
+        # 4. Filter & Extract Data
+        track_ids = []
+        track_info = {}
+        for t in tracks:
+            # Filter out local files and empty IDs
+            if t.get('track') and t['track'].get('id') and not t['track'].get('is_local'):
+                tid = t['track']['id']
+                track_ids.append(tid)
+                track_info[tid] = {
+                    'name': t['track']['name'],
+                    'artist': t['track']['artists'][0]['name'],
+                    'popularity': t['track']['popularity'],
+                    'year': t['track']['album']['release_date'][:4] if t['track']['album']['release_date'] else "N/A"
+                }
+
+        # 5. Fetch Audio Features (The Stats)
+        audio_features = []
+        # Batch requests by 50 to avoid API timeouts
+        for i in range(0, len(track_ids), 50):
+            batch = track_ids[i:i+50]
+            if batch:
+                try:
+                    features = sp.audio_features(batch)
+                    audio_features.extend([f for f in features if f])
+                except:
+                    continue
+
+        # 6. Build the Database
+        df_data = []
+        for feature in audio_features:
+            tid = feature['id']
+            info = track_info.get(tid, {})
+            df_data.append({
+                'Track': info.get('name'),
+                'Artist': info.get('artist'),
+                'Popularity': info.get('popularity'),
+                'Year': info.get('year'),
+                'BPM': round(feature['tempo']),
+                'Energy': feature['energy'],
+                'Danceability': feature['danceability'],
+                'Loudness': feature['loudness'],
+                'Valence': feature['valence'], 
+                'Acousticness': feature['acousticness']
+            })
         
-    if not audio_features:
-        st.error("❌ No audio features returned. (Possible permissions issue)")
-        st.stop()
+        return pd.DataFrame(df_data), pname
 
-    st.success(f"✅ Successfully analyzed {len(audio_features)} tracks.")
-    
-    # Create simple DF to prove it works
-    df = pd.DataFrame(audio_features)
-    st.dataframe(df.head())
-    
-except Exception as e:
-    st.error(f"❌ PROCESSING FAILED: {e}")
-    st.stop()
+    except Exception as e:
+        st.error(f"❌ CRITICAL API FAILURE: {e}")
+        return pd.DataFrame(), "Error"
 
-st.balloons()
-st.success("🎉 SYSTEM IS FULLY OPERATIONAL. You can now revert to the Graph Code.")
+# --- DASHBOARD RENDER ---
+df, pname = get_data()
+
+if not df.empty:
+    st.title(f"🏝️ Ibiza Clout: {pname}")
+    st.markdown("Telemetric analysis of the 'White Isle' cultural sound.")
+    
+    # ROW 1: 3D HERO
+    st.subheader("1. The Balearic Vibe (Mood vs Energy vs Groove)")
+    fig_3d = go.Figure(data=[go.Scatter3d(
+        x=df['Valence'], y=df['Energy'], z=df['Danceability'],
+        mode='markers',
+        marker=dict(
