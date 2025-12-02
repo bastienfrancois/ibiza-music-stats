@@ -1,105 +1,73 @@
 import streamlit as st
-import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
 import pandas as pd
-import plotly.graph_objects as go
 import plotly.express as px
-import random
 
-# --- CONFIG ---
-st.set_page_config(page_title="Ibiza 2025", layout="wide")
+# --- PAGE CONFIG ---
+st.set_page_config(page_title="Ibiza 2025 Telemetry", layout="wide")
 st.markdown("""<style>#MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;} .block-container {padding-top: 1rem;}</style>""", unsafe_allow_html=True)
 
-# --- DATA ENGINE ---
-def get_data_safe():
-    # 1. Try Spotify API
-    try:
-        if "CLIENT_ID" in st.secrets:
-            auth_manager = SpotifyClientCredentials(
-                client_id=st.secrets["CLIENT_ID"], 
-                client_secret=st.secrets["CLIENT_SECRET"],
-                cache_handler=None
-            )
-            sp = spotipy.Spotify(auth_manager=auth_manager, requests_timeout=5)
-            
-            # Search for Ibiza Playlist
-            results = sp.search(q="Ibiza Classics", type="playlist", limit=1)
-            
-            if results and results['playlists']['items']:
-                playlist = results['playlists']['items'][0]
-                pid = playlist['id']
-                pname = playlist['name']
-                
-                # Fetch Tracks
-                tracks = sp.playlist_items(pid, limit=50)['items']
-                track_ids = [t['track']['id'] for t in tracks if t['track'] and not t['track']['is_local']]
-                
-                if track_ids:
-                    feats = sp.audio_features(track_ids)
-                    data = []
-                    for i, f in enumerate(feats):
-                        if f:
-                            t = tracks[i]['track']
-                            data.append({
-                                "Track": t['name'],
-                                "Artist": t['artists'][0]['name'],
-                                "BPM": f['tempo'], "Energy": f['energy'], 
-                                "Valence": f['valence'], "Danceability": f['danceability'],
-                                "Loudness": f['loudness'], "Acousticness": f['acousticness'],
-                                "Popularity": t['popularity'], 
-                                "Year": t['album']['release_date'][:4] if t['album']['release_date'] else "N/A"
-                            })
-                    if data:
-                        return pd.DataFrame(data), f"Source: Spotify API ({pname})"
-    except:
-        pass # Silently fail to offline mode
+# --- LOAD DATA ---
+@st.cache_data
+def load_data():
+    # This looks for the file you just uploaded to GitHub
+    return pd.read_csv("ibiza_data2.csv")
 
-    # 2. OFFLINE GENERATOR (Cannot have syntax errors)
-    # Generates 30 clean data points mathematically
-    data = []
-    for i in range(30):
-        data.append({
-            "Track": f"Offline Track {i}", 
-            "Artist": "Ibiza Resident",
-            "BPM": random.randint(118, 132),
-            "Energy": random.uniform(0.5, 0.9),
-            "Valence": random.uniform(0.3, 0.8),
-            "Danceability": random.uniform(0.6, 0.9),
-            "Loudness": random.uniform(-10, -5),
-            "Acousticness": random.uniform(0.0, 0.4),
-            "Popularity": random.randint(50, 90),
-            "Year": str(random.randint(1995, 2025))
-        })
-    return pd.DataFrame(data), "⚠️ Source: Offline Rescue Data"
+try:
+    df = load_data()
+    
+    st.title("🏝️ Ibiza Telemetry Dashboard")
+    st.caption(f"Analysis of {len(df):,} Tracks | Source: Offline Dataset")
 
-# --- RENDER ---
-df, source = get_data_safe()
-st.title("🏝️ Ibiza Telemetry Dashboard")
-st.caption(source)
-
-if not df.empty:
-    # 3D Plot
-    st.subheader("1. The Vibe (Mood vs Energy vs Groove)")
+    # --- ROW 1: THE HERO CUBE ---
+    st.subheader("1. The Vibe Cube (Mood vs Energy vs Groove)")
+    # We use a predefined color scale to make it look professional
     fig = px.scatter_3d(df, x='Valence', y='Energy', z='Danceability',
                         color='Acousticness', size='Popularity',
-                        hover_name='Track', template='plotly_dark')
-    fig.update_layout(height=600, margin=dict(l=0,r=0,b=0,t=0))
+                        hover_name='Track', 
+                        template='plotly_dark',
+                        color_continuous_scale='Viridis',
+                        labels={'Valence': 'Mood', 'Energy': 'Intensity', 'Danceability': 'Groove'})
+    
+    fig.update_layout(height=700, margin=dict(l=0,r=0,b=0,t=0), scene_camera=dict(eye=dict(x=1.5, y=1.5, z=0.5)))
     st.plotly_chart(fig, use_container_width=True)
 
-    # Charts
+    # --- ROW 2: CORE STATS ---
     c1, c2 = st.columns(2)
-    c1.subheader("BPM Distribution")
-    c1.plotly_chart(px.histogram(df, x="BPM", nbins=15, template='plotly_dark'), use_container_width=True)
-    
-    c2.subheader("Era (Year)")
-    c2.plotly_chart(px.histogram(df.sort_values('Year'), x="Year", template='plotly_dark'), use_container_width=True)
+    with c1:
+        st.subheader("BPM (Tempo)")
+        # Green histogram for Tempo
+        fig_bpm = px.histogram(df, x="BPM", nbins=30, template='plotly_dark', color_discrete_sequence=['#00CC96'])
+        fig_bpm.update_layout(bargap=0.1)
+        st.plotly_chart(fig_bpm, use_container_width=True)
+        
+    with c2:
+        st.subheader("Evolution (Year)")
+        # Purple histogram for Eras
+        # We filter out 'N/A' years to prevent errors
+        clean_years = df[df['Year'] != 'N/A'].sort_values('Year')
+        fig_year = px.histogram(clean_years, x="Year", template='plotly_dark', color_discrete_sequence=['#AB63FA'])
+        fig_year.update_layout(bargap=0.1)
+        st.plotly_chart(fig_year, use_container_width=True)
 
+    # --- ROW 3: DEEP DIVE ---
     c3, c4 = st.columns(2)
-    c3.subheader("Top Artists")
-    top_art = df['Artist'].value_counts().head(5)
-    c3.plotly_chart(px.bar(x=top_art.index, y=top_art.values, template='plotly_dark'), use_container_width=True)
-    
-    c4.subheader("Mood Map")
-    c4.plotly_chart(px.scatter(df, x="Valence", y="Energy", color="Acousticness", template='plotly_dark'), use_container_width=True)
-else:
-    st.error("System Failure")
+    with c3:
+        st.subheader("Top Artists")
+        # Filter out the "Session" tracks so we only see Real Artists in the chart
+        real_artists = df[~df['Track'].str.contains("Session", na=False)]['Artist'].value_counts().head(10)
+        fig_art = px.bar(x=real_artists.index, y=real_artists.values, template='plotly_dark', 
+                         color=real_artists.values, color_continuous_scale='Bluered')
+        fig_art.update_layout(showlegend=False, xaxis_title=None, yaxis_title="Tracks")
+        st.plotly_chart(fig_art, use_container_width=True)
+        
+    with c4:
+        st.subheader("Mood Map")
+        fig_mood = px.scatter(df, x="Valence", y="Energy", color="Acousticness", 
+                              template='plotly_dark', title="Sad/Dark (Left) vs Happy/Energetic (Right)")
+        st.plotly_chart(fig_mood, use_container_width=True)
+
+except FileNotFoundError:
+    st.error("⚠️ File 'ibiza_data.csv' not found.")
+    st.info("Make sure you uploaded the CSV file to the root of your GitHub repository.")
+except Exception as e:
+    st.error(f"Something went wrong: {e}")
