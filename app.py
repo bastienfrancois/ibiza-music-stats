@@ -10,7 +10,7 @@ st.markdown("""<style>#MainMenu {visibility: hidden;} footer {visibility: hidden
 @st.cache_data
 def load_data():
     # This looks for the file you just uploaded to GitHub
-    return pd.read_csv("ibiza_data3.csv")
+    return pd.read_csv("ibiza_data.csv")
 
 try:
     df = load_data()
@@ -71,4 +71,5 @@ except FileNotFoundError:
     st.info("Make sure you uploaded the CSV file to the root of your GitHub repository.")
 except Exception as e:
     st.error(f"Something went wrong: {e}")
+
 
