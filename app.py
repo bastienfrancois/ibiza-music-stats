@@ -15,8 +15,8 @@ try:
     raw_df = load_data()
     
     # --- PRE-PROCESSING ---
-    # 1. Strict BPM Filter (50 to 200)
-    df = raw_df[(raw_df['BPM'] >= 50) & (raw_df['BPM'] <= 200)].copy()
+    # 1. Strict BPM Filter (60 to 160)
+    df = raw_df[(raw_df['BPM'] >= 65) & (raw_df['BPM'] <= 160)].copy()
     
     # 2. Create "Display Title" (Artist - Full Track Name)
     df['Artist_Clean'] = df['Artist'].astype(str).str.replace(r"[\[\]']", "", regex=True)
@@ -96,3 +96,4 @@ try:
 except Exception as e:
     st.error(f"Something went wrong: {e}")
     st.info("Tip: Ensure your 'ibiza_data3.csv' is uploaded to GitHub.")
+
