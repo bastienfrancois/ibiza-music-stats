@@ -20,7 +20,7 @@ except:
 # --- MAIN DATA ENGINE ---
 def get_data():
     try:
-        # 1. Force Fresh Authentication (Disables caching to fix 'NoneType' errors)
+        # 1. Force Fresh Authentication
         auth_manager = SpotifyClientCredentials(
             client_id=client_id, 
             client_secret=client_secret, 
@@ -28,26 +28,24 @@ def get_data():
         )
         sp = spotipy.Spotify(auth_manager=auth_manager)
         
-        # 2. HARDCODED TARGET (The ID you provided)
+        # 2. HARDCODED TARGET
         target_id = '6wQJ2kYwH8wGj1z8xX0j2y' 
         
-        # 3. Get Playlist Info & Tracks
+        # 3. Get Playlist Info
         try:
             playlist_info = sp.playlist(target_id)
             pname = playlist_info['name']
             
-            # Fetch tracks (Limit 80 for speed/relevance)
+            # Fetch tracks
             track_results = sp.playlist_items(target_id, limit=80)
             tracks = track_results['items']
         except Exception as e:
-             # If the ID is wrong or private, this catches it
             return pd.DataFrame(), f"Playlist Error: {e}"
 
         # 4. Filter & Extract Data
         track_ids = []
         track_info = {}
         for t in tracks:
-            # Filter out local files and empty IDs
             if t.get('track') and t['track'].get('id') and not t['track'].get('is_local'):
                 tid = t['track']['id']
                 track_ids.append(tid)
@@ -58,9 +56,8 @@ def get_data():
                     'year': t['track']['album']['release_date'][:4] if t['track']['album']['release_date'] else "N/A"
                 }
 
-        # 5. Fetch Audio Features (The Stats)
+        # 5. Fetch Audio Features
         audio_features = []
-        # Batch requests by 50 to avoid API timeouts
         for i in range(0, len(track_ids), 50):
             batch = track_ids[i:i+50]
             if batch:
@@ -70,7 +67,7 @@ def get_data():
                 except:
                     continue
 
-        # 6. Build the Database
+        # 6. Build DataFrame
         df_data = []
         for feature in audio_features:
             tid = feature['id']
@@ -103,7 +100,61 @@ if not df.empty:
     
     # ROW 1: 3D HERO
     st.subheader("1. The Balearic Vibe (Mood vs Energy vs Groove)")
+    
+    # FIXED SYNTAX SECTION
     fig_3d = go.Figure(data=[go.Scatter3d(
-        x=df['Valence'], y=df['Energy'], z=df['Danceability'],
+        x=df['Valence'], 
+        y=df['Energy'], 
+        z=df['Danceability'],
         mode='markers',
         marker=dict(
+            size=df['Popularity']/5, 
+            color=df['Acousticness'], 
+            colorscale='Viridis', 
+            opacity=0.8, 
+            colorbar=dict(title="Organic vs Digital")
+        ),
+        text=df['Track'] + " - " + df['Artist'],
+        hovertemplate='<b>%{text}</b><br>Mood: %{x}<br>Energy: %{y}<br>Groove: %{z}<extra></extra>'
+    )])
+    
+    fig_3d.update_layout(
+        height=600, 
+        template='plotly_dark', 
+        margin=dict(l=0, r=0, b=0, t=0),
+        scene=dict(xaxis_title='Mood', yaxis_title='Energy', zaxis_title='Groove')
+    )
+    st.plotly_chart(fig_3d, use_container_width=True)
+
+    # ROW 2: STATS
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("BPM Distribution")
+        fig_bpm = px.histogram(df, x="BPM", nbins=20, color_discrete_sequence=['#00CC96'])
+        fig_bpm.update_layout(template='plotly_dark', height=300)
+        st.plotly_chart(fig_bpm, use_container_width=True)
+    with col2:
+        st.subheader("Emotional Range (Valence)")
+        fig_mood = px.scatter(df, x="Valence", y="Energy", color="Acousticness", template='plotly_dark')
+        fig_mood.update_layout(height=300)
+        st.plotly_chart(fig_mood, use_container_width=True)
+
+    # ROW 3: HISTORY
+    col3, col4 = st.columns(2)
+    with col3:
+        st.subheader("Key Architects")
+        if 'Artist' in df.columns:
+            top_art = df['Artist'].value_counts().head(7)
+            fig_art = px.bar(x=top_art.index, y=top_art.values, color=top_art.values, color_continuous_scale='Bluered')
+            fig_art.update_layout(template='plotly_dark', height=300, showlegend=False)
+            st.plotly_chart(fig_art, use_container_width=True)
+    with col4:
+        st.subheader("Era (Decades)")
+        if 'Year' in df.columns:
+            df_sorted = df.sort_values('Year')
+            fig_year = px.histogram(df_sorted, x="Year", color_discrete_sequence=['#AB63FA'])
+            fig_year.update_layout(template='plotly_dark', height=300)
+            st.plotly_chart(fig_year, use_container_width=True)
+
+else:
+    st.info("Initializing connection... (If this persists, check Streamlit Secrets)")
