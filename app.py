@@ -33,14 +33,14 @@ try:
     fig_3d = px.scatter_3d(df, 
                         x='BPM', 
                         y='Danceability', 
-                        z='key', # FIXED: Changed from 'Key' to 'key'
+                        z='energy',
                         color='Popularity', 
                         size='Popularity', 
                         hover_name='Display_Title',
                         hover_data={'BPM': True, 'key': True, 'Display_Title': False},
                         template='plotly_dark',
                         color_continuous_scale='Turbo',
-                        title="3D Telemetry: Tempo vs Groove vs Tonality")
+                        title="3D Telemetry: BPM vs Danceability vs Energy")
     
     # Make the graph tall
     fig_3d.update_layout(height=800, margin=dict(l=0,r=0,b=0,t=0))
@@ -97,3 +97,4 @@ try:
 except Exception as e:
     st.error(f"Something went wrong: {e}")
     st.info("Tip: Ensure your 'ibiza_data.csv' is uploaded to GitHub.")
+
