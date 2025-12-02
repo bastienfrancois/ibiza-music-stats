@@ -2,75 +2,99 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# --- PAGE CONFIG ---
-st.set_page_config(page_title="Ibiza 2025 Telemetry", layout="wide")
+st.set_page_config(page_title="Ibiza Clout Study", layout="wide")
 st.markdown("""<style>#MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;} .block-container {padding-top: 1rem;}</style>""", unsafe_allow_html=True)
 
 # --- LOAD DATA ---
 @st.cache_data
 def load_data():
-    # This looks for the file you just uploaded to GitHub
-    return pd.read_csv("ibiza_data3.csv")
+    return pd.read_csv("ibiza_data.csv")
 
 try:
-    df = load_data()
+    raw_df = load_data()
     
-    st.title("🏝️ Ibiza Telemetry Dashboard")
-    st.caption(f"Analysis of {len(df):,} Tracks | Source: Offline Dataset")
+    # --- DATA CLEANING & FILTERS ---
+    # 1. Strict BPM Filter (50 to 200 only)
+    df = raw_df[(raw_df['BPM'] >= 50) & (raw_df['BPM'] <= 200)].copy()
+    
+    # 2. Create "Display Title" (Artist - Full Track Name)
+    # We clean the artist column just in case
+    df['Artist_Clean'] = df['Artist'].astype(str).str.replace(r"[\[\]']", "", regex=True)
+    df['Display_Title'] = df['Artist_Clean'] + " - " + df['Track']
 
-    # --- ROW 1: THE HERO CUBE ---
-    st.subheader("1. The Vibe Cube (Mood vs Energy vs Groove)")
-    # We use a predefined color scale to make it look professional
-    fig = px.scatter_3d(df, x='Valence', y='Energy', z='Danceability',
-                        color='Acousticness', size='Popularity',
-                        hover_name='Track', 
+    # --- DASHBOARD HEADER ---
+    st.title("🏝️ Ibiza Clout Study")
+    st.caption(f"Analyzing {len(df):,} Tracks | BPM Range: 50-200 | Source: Kaggle Research Data")
+
+    # --- ROW 1: THE 3D ANALYSIS (Updated Axes) ---
+    st.subheader("1. The Ibiza Sound Structure")
+    st.markdown("X: **Tempo (BPM)** | Y: **Danceability** | Z: **Musical Key** | Color: **Popularity**")
+    
+    fig_3d = px.scatter_3d(df, 
+                        x='BPM', 
+                        y='Danceability', 
+                        z='Key',
+                        color='Popularity', 
+                        size='Popularity', # Bubble size also shows popularity
+                        hover_name='Display_Title', # Shows full Artist - Track
+                        hover_data={'BPM': True, 'Key': True, 'Display_Title': False},
                         template='plotly_dark',
-                        color_continuous_scale='Viridis',
-                        labels={'Valence': 'Mood', 'Energy': 'Intensity', 'Danceability': 'Groove'})
+                        color_continuous_scale='Turbo', # High contrast neon colors
+                        title="3D Telemetry: Tempo vs Groove vs Tonality")
     
-    fig.update_layout(height=700, margin=dict(l=0,r=0,b=0,t=0), scene_camera=dict(eye=dict(x=1.5, y=1.5, z=0.5)))
-    st.plotly_chart(fig, use_container_width=True)
+    # Make the graph tall and impressive
+    fig_3d.update_layout(height=800, margin=dict(l=0,r=0,b=0,t=0))
+    st.plotly_chart(fig_3d, use_container_width=True)
 
-    # --- ROW 2: CORE STATS ---
+    # --- ROW 2: DETAILED STATS (New Layout) ---
     c1, c2 = st.columns(2)
+    
     with c1:
-        st.subheader("BPM (Tempo)")
-        # Green histogram for Tempo
-        fig_bpm = px.histogram(df, x="BPM", nbins=30, template='plotly_dark', color_discrete_sequence=['#00CC96'])
-        fig_bpm.update_layout(bargap=0.1)
+        st.subheader("Tempo Analysis (Strict 2-BPM Granularity)")
+        # Calculate strict bins: (200 - 50) / 2 = 75 bins
+        fig_bpm = px.histogram(df, x="BPM", 
+                               nbins=75, 
+                               template='plotly_dark', 
+                               color_discrete_sequence=['#00CC96']) # Ibiza Green
+        
+        # Force strict 2-beat intervals
+        fig_bpm.update_traces(xbins=dict(start=50, end=200, size=2))
+        fig_bpm.update_layout(bargap=0.05, xaxis_title="BPM (Beats Per Minute)")
         st.plotly_chart(fig_bpm, use_container_width=True)
         
     with c2:
-        st.subheader("Evolution (Year)")
-        # Purple histogram for Eras
-        # We filter out 'N/A' years to prevent errors
-        clean_years = df[df['Year'] != 'N/A'].sort_values('Year')
-        fig_year = px.histogram(clean_years, x="Year", template='plotly_dark', color_discrete_sequence=['#AB63FA'])
-        fig_year.update_layout(bargap=0.1)
-        st.plotly_chart(fig_year, use_container_width=True)
+        st.subheader("Energy vs Danceability")
+        # Replacing the Year graph as requested
+        fig_scatter = px.scatter(df, x="Danceability", y="Energy", 
+                                 color="Genre" if "Genre" in df.columns else "Popularity",
+                                 hover_name="Display_Title",
+                                 template='plotly_dark',
+                                 title="Club Readiness (Groove vs Intensity)")
+        st.plotly_chart(fig_scatter, use_container_width=True)
 
-    # --- ROW 3: DEEP DIVE ---
-    c3, c4 = st.columns(2)
-    with c3:
-        st.subheader("Top Artists")
-        # Filter out the "Session" tracks so we only see Real Artists in the chart
-        real_artists = df[~df['Track'].str.contains("Session", na=False)]['Artist'].value_counts().head(10)
-        fig_art = px.bar(x=real_artists.index, y=real_artists.values, template='plotly_dark', 
-                         color=real_artists.values, color_continuous_scale='Bluered')
-        fig_art.update_layout(showlegend=False, xaxis_title=None, yaxis_title="Tracks")
-        st.plotly_chart(fig_art, use_container_width=True)
-        
-    with c4:
-        st.subheader("Mood Map")
-        fig_mood = px.scatter(df, x="Valence", y="Energy", color="Acousticness", 
-                              template='plotly_dark', title="Sad/Dark (Left) vs Happy/Energetic (Right)")
-        st.plotly_chart(fig_mood, use_container_width=True)
+    # --- ROW 3: TOP 50 & GENRES ---
+    st.subheader("Top 50 Most Popular Tracks")
+    
+    # Sort by popularity and take top 50
+    top_50 = df.sort_values('Popularity', ascending=False).head(50)
+    
+    # Horizontal Bar Chart, Colored by Loudness
+    fig_top = px.bar(top_50, 
+                     x='Popularity', 
+                     y='Display_Title', 
+                     orientation='h', # Horizontal
+                     template='plotly_dark',
+                     color='Loudness', # As requested
+                     color_continuous_scale='Magma', # Dark to Bright heat map
+                     hover_data=['BPM', 'Genre'])
+    
+    # Invert Y axis so #1 is at the top, make chart very tall to fit 50 songs
+    fig_top.update_layout(yaxis=dict(autorange="reversed"), 
+                          height=1000, # Taller for 50 items
+                          xaxis_title="Popularity Score (0-100)", 
+                          yaxis_title=None)
+    st.plotly_chart(fig_top, use_container_width=True)
 
-except FileNotFoundError:
-    st.error("⚠️ File 'ibiza_data.csv' not found.")
-    st.info("Make sure you uploaded the CSV file to the root of your GitHub repository.")
 except Exception as e:
     st.error(f"Something went wrong: {e}")
-
-
-
+    st.info("Tip: Ensure your 'ibiza_data.csv' is uploaded to GitHub.")
