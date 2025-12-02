@@ -18,7 +18,6 @@ except FileNotFoundError:
     st.error("🚨 Secrets missing! Please add CLIENT_ID and CLIENT_SECRET to Streamlit settings.")
     st.stop()
 
-@st.cache_data(ttl=600)
 def get_data():
     auth_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
     sp = spotipy.Spotify(auth_manager=auth_manager)
@@ -137,3 +136,4 @@ if not df.empty:
 
 else:
     st.write("No data found. Check API quotas or Secrets.")
+
