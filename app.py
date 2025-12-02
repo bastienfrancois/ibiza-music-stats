@@ -43,7 +43,7 @@ def get_spotify_data(playlist_id):
     
     # 1. Get Tracks
     try:
-        results = sp.playlist_tracks(playlist_id)
+        results = sp.playlist_items(playlist_id)
     except Exception as e:
         st.error(f"Error fetching playlist: {e}")
         return pd.DataFrame()
@@ -175,4 +175,5 @@ try:
             st.plotly_chart(fig_gauge, use_container_width=True)
 
 except Exception as e:
+
     st.error(f"System Error: {e}")
