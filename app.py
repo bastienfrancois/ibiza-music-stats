@@ -18,41 +18,33 @@ except:
     st.stop()
 
 def get_data():
+    status_log = [] # Keep a log of what happens
     try:
-        # 1. Authenticate (No Cache)
+        # 1. Authenticate
         auth_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret, cache_handler=None)
         sp = spotipy.Spotify(auth_manager=auth_manager)
+        status_log.append("Auth Successful.")
         
-        # 2. TARGET SELECTION (The Fix)
-        # Primary: Ibiza Classics (Official)
-        # Backup: The EDM list we know works (5PCv6afEatU3z9cq2fBPDs)
-        targets = [
-            {'id': '37i9dQZF1DWVlysXLVxUxE', 'name': 'Ibiza Classics (Official)'},
-            {'id': '5PCv6afEatU3z9cq2fBPDs', 'name': 'EDM 2025 (Fallback)'}
-        ]
+        # 2. TARGET: The Known Working Playlist (EDM 2025)
+        # We use this one because we confirmed it works.
+        target_id = '5PCv6afEatU3z9cq2fBPDs' 
         
-        playlist_name = "Unknown"
-        tracks = []
-        
-        # Try targets one by one until one works
-        for target in targets:
-            try:
-                results = sp.playlist_items(target['id'], limit=80)
-                if results and results['items']:
-                    tracks = results['items']
-                    playlist_name = target['name']
-                    break # Found one! Stop looking.
-            except:
-                continue # Try the next one
-        
-        if not tracks:
-            return pd.DataFrame(), "Error: No Playlists Found"
+        try:
+            playlist_info = sp.playlist(target_id)
+            pname = playlist_info['name']
+            status_log.append(f"Found Playlist: {pname}")
+            
+            # Fetch tracks
+            track_results = sp.playlist_items(target_id, limit=80)
+            tracks = track_results['items']
+            status_log.append(f"Downloaded {len(tracks)} tracks.")
+        except Exception as e:
+            return pd.DataFrame(), f"Playlist Error: {e}", status_log
 
-        # 3. Process Data
+        # 3. Filter Data
         track_ids = []
         track_info = {}
         for t in tracks:
-            # Filter out local files and empty IDs
             if t.get('track') and t['track'].get('id') and not t['track'].get('is_local'):
                 tid = t['track']['id']
                 track_ids.append(tid)
@@ -62,6 +54,9 @@ def get_data():
                     'popularity': t['track']['popularity'],
                     'year': t['track']['album']['release_date'][:4] if t['track']['album']['release_date'] else "N/A"
                 }
+        
+        if not track_ids:
+             return pd.DataFrame(), "Error: No valid track IDs found (all local or empty).", status_log
 
         # 4. Audio Features
         audio_features = []
@@ -73,6 +68,9 @@ def get_data():
                     audio_features.extend([f for f in features if f])
                 except:
                     continue
+
+        if not audio_features:
+            return pd.DataFrame(), "Error: API returned 0 audio features.", status_log
 
         # 5. Build DataFrame
         df_data = []
@@ -92,25 +90,21 @@ def get_data():
                 'Acousticness': feature['acousticness']
             })
         
-        return pd.DataFrame(df_data), playlist_name
+        return pd.DataFrame(df_data), pname, status_log
 
     except Exception as e:
-        st.error(f"System Error: {e}")
-        return pd.DataFrame(), "Error"
+        return pd.DataFrame(), f"Critical Error: {e}", status_log
 
 # --- DASHBOARD RENDER ---
-df, pname = get_data()
+df, pname_or_error, logs = get_data()
 
 if not df.empty:
-    st.title(f"🏝️ Ibiza Clout: {pname}")
-    st.markdown("Telemetric analysis of the 'White Isle' cultural sound.")
+    st.title(f"🏝️ Ibiza Clout: {pname_or_error}")
     
-    # ROW 1: 3D HERO (Syntax Fixed)
+    # ROW 1: 3D HERO
     st.subheader("1. The Balearic Vibe (Mood vs Energy vs Groove)")
     fig_3d = go.Figure(data=[go.Scatter3d(
-        x=df['Valence'], 
-        y=df['Energy'], 
-        z=df['Danceability'],
+        x=df['Valence'], y=df['Energy'], z=df['Danceability'],
         mode='markers',
         marker=dict(
             size=df['Popularity']/5, 
@@ -157,4 +151,9 @@ if not df.empty:
             st.plotly_chart(fig_year, use_container_width=True)
 
 else:
-    st.info("Connecting...")
+    # THIS IS THE FIX: It now shows you the logs and the specific error
+    st.title("⚠️ Data Load Failed")
+    st.error(f"Reason: {pname_or_error}")
+    with st.expander("See System Logs"):
+        for log in logs:
+            st.write(f"- {log}")
