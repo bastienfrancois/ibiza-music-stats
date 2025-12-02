@@ -35,7 +35,7 @@ try:
                         y='Danceability', 
                         z='energy',
                         color='Popularity', 
-                        size='Popularity', 
+                        size='key', 
                         hover_name='Display_Title',
                         hover_data={'BPM': True, 'key': True, 'Display_Title': False},
                         template='plotly_dark',
@@ -97,5 +97,6 @@ try:
 except Exception as e:
     st.error(f"Something went wrong: {e}")
     st.info("Tip: Ensure your 'ibiza_data.csv' is uploaded to GitHub.")
+
 
 
