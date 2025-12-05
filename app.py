@@ -23,7 +23,7 @@ try:
     df['Display_Title'] = df['Artist_Clean'] + " - " + df['Track']
 
     # --- DASHBOARD HEADER ---
-    st.title("🏝️ Ibiza Clout Study")
+    st.title("🏝️ Ibiza Clout Study - A statistical analysis of 10000 Ibiza Songs")
     st.caption(f"Analyzing {len(df):,} Tracks | BPM Range: 50-200 | Source: Kaggle Research Data")
 
     # --- ROW 1: THE 3D ANALYSIS ---
