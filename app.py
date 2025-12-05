@@ -23,7 +23,7 @@ try:
     df['Display_Title'] = df['Artist_Clean'] + " - " + df['Track']
 
     # --- DASHBOARD HEADER ---
-    st.title("🏝️ The Ibiza Sound Study")
+    st.title("📀 The Ibiza Sound Study")
     st.caption(f"A statistical analysis of 10000 Ibiza Songs - {len(df):,} Tracks | BPM Range: 50-200 | Source: Kaggle Research Data fitered for electronic genres")
 
     # --- ROW 1: THE 3D ANALYSIS ---
@@ -96,6 +96,7 @@ try:
 except Exception as e:
     st.error(f"Something went wrong: {e}")
     st.info("Tip: Ensure your 'ibiza_data3.csv' is uploaded to GitHub.")
+
 
 
 
